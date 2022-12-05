@@ -11,16 +11,16 @@ client-lib.o:	required_dirs $(OBJ_C)
 	ld -r $(addprefix object/,$(OBJ_C)) -o object/client-lib.o
 
 tree-client: required_dirs client-lib.o tree_client.o
-	gcc object/client-lib.o object/tree_client.o -pthread -lprotobuf-c -o binary/tree-client
+	gcc object/client-lib.o object/tree_client.o -pthread -lprotobuf-c -lzookeeper_mt -o binary/tree-client
 
 tree-server: required_dirs $(OBJ_S) 
-	gcc $(addprefix object/,$(OBJ_S)) -pthread -lprotobuf-c -o binary/tree-server
+	gcc $(addprefix object/,$(OBJ_S)) -pthread -lprotobuf-c -lzookeeper_mt -o binary/tree-server
 
 tree.o:
 	cp lib/tree.o.extra object/tree.o
 
 %.o: source/%.c
-	gcc $< -c -I include -o object/$@ -g -Wall
+	gcc $< -c -I include -o object/$@ -g -Wall -lzookeeper_mt
 
 required_dirs:
 	mkdir -p object
