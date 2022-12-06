@@ -17,9 +17,9 @@ void closing_handler(int unused){
 
 int main(int argc, char *argv[]){
 
-    if (argc != 3){
-        printf("Uso: ./tree_server <porto_servidor> <N>\n");
-        printf("Exemplo de uso: ./tree_server 12345 3\n");
+    if (argc != 2){
+        printf("Uso: ./tree_server <porto_servidor>\n");
+        printf("Exemplo de uso: ./tree_server 12345\n");
         return -1;
     }
 
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]){
 
     int listening_socket_fd = network_server_init(listening_socket_port);
 
-    if(tree_skel_init(atoi(argv[2])) < 0){
+    if(tree_skel_init(1) < 0){ //Server now only creates 1 secondary thread everytime
         printf("Error creating the tree or initiating the secondary threads\n");
         closing_handler(-1);
         return -1;
