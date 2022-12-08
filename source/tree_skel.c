@@ -20,7 +20,6 @@ Trabalho realisado por: Martim Baptista Nº56323
 //static char *host_port;
 static char *root_path = "/chain";
 static zhandle_t *zh;
-static int is_connected;
 
 
 struct request_t { 
@@ -56,13 +55,8 @@ size_t threads_amount = 0;
 int CLOSE_PROGRAM = 0;
 
 void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
-	if (type == ZOO_SESSION_EVENT) {
-		if (state == ZOO_CONNECTED_STATE) {
-			is_connected = 1; 
-		} else {
-			is_connected = 0; 
-		}
-	}
+	//TODO
+    printf("Watcher called.\n");
 }
 
 /* Inicia o skeleton da árvore. 
@@ -107,7 +101,19 @@ int tree_skel_init(char* host_port){
         }
     }
 
+    //Conecting to zookeeper
     zh = zookeeper_init(host_port, connection_watcher, 2000, 0, 0, 0);
+
+    //Checking for /chain
+    if(zoo_exists(zh, root_path, 0, NULL) != 0) {
+        printf("Path \"\\chain\" not present, creating node.\n");
+        if (ZOK != zoo_create(zh, root_path, NULL, -1, & ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0)) {
+				fprintf(stderr, "Error creating znode from path %s!\n", root_path);
+			    exit(EXIT_FAILURE);
+			}
+        printf("Path \"\\chain\" created.\n");
+    }
+
 
     return 0;
 }
