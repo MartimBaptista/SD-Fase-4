@@ -12,12 +12,16 @@ Trabalho realisado por: Martim Baptista Nº56323
 #include <stdio.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <netdb.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <zookeeper/zookeeper.h>
 
 
 /* ZooKeeper Znode Data Length (1MB, the max supported) */ 
 #define ZDATALEN 1024 * 1024
-//static char *host_port;
 static char *root_path = "/chain";
 static zhandle_t *zh;
 
@@ -54,9 +58,12 @@ size_t threads_amount = 0;
 
 int CLOSE_PROGRAM = 0;
 
-void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
+void children_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
 	//TODO
     printf("Watcher called.\n");
+
+    //resetting watcher
+    zoo_wget_children(zh, root_path, children_watcher, NULL, NULL);
 }
 
 /* Inicia o skeleton da árvore. 
@@ -66,7 +73,7 @@ void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, v
  * pedidos de escrita na árvore. 
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY) 
  */
-int tree_skel_init(char* host_port){
+int tree_skel_init(char* host_port, char* own_port){
     //Creating tree
     tree = tree_create();
 
@@ -102,9 +109,13 @@ int tree_skel_init(char* host_port){
     }
 
     //Conecting to zookeeper
-    zh = zookeeper_init(host_port, connection_watcher, 2000, 0, 0, 0);
+    zh = zookeeper_init(host_port, NULL, 2000, 0, 0, 0);
+    if (zh == NULL) {
+	    fprintf(stderr, "Error connecting to zookeeper server!\n");
+	    exit(EXIT_FAILURE);
+    }
 
-    //Checking for /chain
+    //Checking for /chain and creating if needed
     if(zoo_exists(zh, root_path, 0, NULL) != 0) {
         printf("Path \"\\chain\" not present, creating node.\n");
         if (ZOK != zoo_create(zh, root_path, NULL, -1, & ZOO_OPEN_ACL_UNSAFE, 0, NULL, 0)) {
@@ -114,6 +125,46 @@ int tree_skel_init(char* host_port){
         printf("Path \"\\chain\" created.\n");
     }
 
+    //Getting own IP adress
+    char hostbuffer[256];
+    char *IPadress;
+    struct hostent *host_entry;
+
+    gethostname(hostbuffer, sizeof(hostbuffer));
+    host_entry = gethostbyname(hostbuffer);
+    IPadress = inet_ntoa(*((struct in_addr*)host_entry->h_addr_list[0]));
+
+    //Building the node path
+    char node_path[100] = "";
+	strcat(node_path,root_path);
+	strcat(node_path,"/node");
+
+    //Builidng the node data
+    char node_data[100] = "";
+	strcat(node_data,IPadress);
+	strcat(node_data,":");
+	strcat(node_data,own_port);
+
+    //Creating node and storing its path
+	int new_path_len = 1024;
+	char* new_path = malloc (new_path_len);
+
+    if (ZOK != zoo_create(zh, node_path, node_data, strlen(node_data) + 1, & ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL | ZOO_SEQUENCE, new_path, new_path_len)) {
+		fprintf(stderr, "Error creating znode from path %s!\n", node_path);
+		exit(EXIT_FAILURE);
+	}
+
+    //Setting watcher over /chain's children
+    zoo_wget_children(zh, root_path, children_watcher, NULL, NULL);
+
+    //Getting next server in the chain
+    
+
+    /*
+    Ver qual é o servidor com id mais alto a seguir ao nosso, de entre os filhos de /chain; 
+    Obter os meta-dados desse servidor do ZooKeeper (i.e. o seu IP); 
+    Guardar  e  ligar  a  esse  servidor  como  next_server,  ou  deixar  a  variável  a  NULL  se  o nosso id for o mais alto (quer dizer que nós somos a cauda da cadeia). 
+    */
 
     return 0;
 }
