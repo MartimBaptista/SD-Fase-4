@@ -18,12 +18,23 @@ Trabalho realisado por: Martim Baptista Nº56323
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <zookeeper/zookeeper.h>
+#include "tree_skel-private.h"
+//TODO: these are included cause the server semi-beaves like a cliente to the next server in the chain
+//#include "client_stub.h"
+//#include "network_client.h"
+//
 
 
-/* ZooKeeper Znode Data Length (1MB, the max supported) */ 
+
+/* ZooKeeper Znode Data Length (1MB, the max supported) */
 #define ZDATALEN 1024 * 1024
+
+typedef struct String_vector zoo_string;
+
 static char *root_path = "/chain";
 static zhandle_t *zh;
+char* own_path;
+struct rtree_t *next_server;
 
 
 struct request_t { 
@@ -58,12 +69,57 @@ size_t threads_amount = 0;
 
 int CLOSE_PROGRAM = 0;
 
-void children_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
-	//TODO
-    printf("Watcher called.\n");
+void setup_next(zoo_string *children_list){
 
-    //resetting watcher
-    zoo_wget_children(zh, root_path, children_watcher, NULL, NULL);
+    printf("----------------------//----------------------\n");
+    printf ("Changes in chain detected, looking for next server in chain.\n");
+    //Figuring which server is next in the chain
+    char* own_name = &own_path[strlen(root_path) + 1];
+    char* next_name = NULL;
+
+    for (int i = 0; i < children_list->count; i++) {
+        if(strcmp(children_list->data[i], own_name) > 0) {
+            if(!next_name)
+                next_name = children_list->data[i];
+            else if(strcmp(children_list->data[i], next_name) < 0)
+                next_name = children_list->data[i];
+        }
+	}
+    //returning in case no next in chain
+    if(!next_name){
+        printf("No next node in chain (This server is the tail).\n");
+        return;
+    }
+
+    printf("Next node in chain: %s\n", next_name);
+
+    //getting the servers adress (node data)
+    char node_path[100] = "";
+	strcat(node_path,root_path);
+	strcat(node_path,"/");
+	strcat(node_path,next_name);
+    
+    char *zoo_data = malloc(ZDATALEN * sizeof(char));
+	int zoo_data_len = ZDATALEN;
+
+    zoo_get(zh, node_path, 0, zoo_data, &zoo_data_len, NULL);
+
+    printf("IP adress of next node: %s\n", zoo_data);
+
+
+    //TODO:
+    //Connecting to the server
+    //rtree_t *rtree_connect(const char *address_port) //to connect to the next server
+}
+
+void children_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
+    //Resetting watcher and getting the a list with the children
+    zoo_string* children_list =	(zoo_string *) malloc(sizeof(zoo_string));
+    zoo_wget_children(zh, root_path, children_watcher, context, children_list);
+
+    //Resetting connection to next server in chain
+    setup_next(children_list);
+    free(children_list);
 }
 
 /* Inicia o skeleton da árvore. 
@@ -115,6 +171,8 @@ int tree_skel_init(char* host_port, char* own_port){
 	    exit(EXIT_FAILURE);
     }
 
+	sleep(1); /* Sleep a little for connection to complete */
+
     //Checking for /chain and creating if needed
     if(zoo_exists(zh, root_path, 0, NULL) != 0) {
         printf("Path \"\\chain\" not present, creating node.\n");
@@ -146,25 +204,23 @@ int tree_skel_init(char* host_port, char* own_port){
 	strcat(node_data,own_port);
 
     //Creating node and storing its path
-	int new_path_len = 1024;
-	char* new_path = malloc (new_path_len);
+	int own_path_len = 1024;
+	own_path = malloc (own_path_len);
 
-    if (ZOK != zoo_create(zh, node_path, node_data, strlen(node_data) + 1, & ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL | ZOO_SEQUENCE, new_path, new_path_len)) {
+    if (ZOK != zoo_create(zh, node_path, node_data, strlen(node_data) + 1, & ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL | ZOO_SEQUENCE, own_path, own_path_len)) {
 		fprintf(stderr, "Error creating znode from path %s!\n", node_path);
 		exit(EXIT_FAILURE);
 	}
 
-    //Setting watcher over /chain's children
-    zoo_wget_children(zh, root_path, children_watcher, NULL, NULL);
+    printf("Server's znode path: %s\n", own_path);
 
-    //Getting next server in the chain
-    
+    //Setting watcher over /chain's children and getting a list with them
+    zoo_string* children_list =	(zoo_string *) malloc(sizeof(zoo_string));
+    zoo_wget_children(zh, root_path, children_watcher, NULL, children_list);
 
-    /*
-    Ver qual é o servidor com id mais alto a seguir ao nosso, de entre os filhos de /chain; 
-    Obter os meta-dados desse servidor do ZooKeeper (i.e. o seu IP); 
-    Guardar  e  ligar  a  esse  servidor  como  next_server,  ou  deixar  a  variável  a  NULL  se  o nosso id for o mais alto (quer dizer que nós somos a cauda da cadeia). 
-    */
+    //Connecting to next server in the chain
+    setup_next(children_list);
+    free(children_list);
 
     return 0;
 }
@@ -311,11 +367,15 @@ void tree_skel_destroy(){
     
     //destroying tree
     tree_destroy(tree);
+
+    //TODO:
+    //disconnecting from the next server in the chain
 }
 
 /* Verifica se a operação identificada por op_n foi executada. 
  */ 
 int verify(int op_n){
+    //TODO:
     int ret = 0;
     if(op_n <= 0)
         return -1;
@@ -384,6 +444,11 @@ int invoke(MessageT *msg) {
             
             queue_add_task(new_request);
 
+            //TODO: test this
+            //propagating to next server
+            //if(next_server)
+                //message_t__free_unpacked(network_send_receive(next_server, msg), NULL);
+
             //creating answer msg
             msg->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
             msg->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
@@ -417,9 +482,6 @@ int invoke(MessageT *msg) {
             return 0;
 
         case MESSAGE_T__OPCODE__OP_PUT: ;
-
-            //TODO - assincronous put
-
             printf("Requested: put %s %s\n", msg->entry->key, (char*)msg->entry->data.data);
 
             //creating request
@@ -436,6 +498,11 @@ int invoke(MessageT *msg) {
             last_assigned++;
             
             queue_add_task(new_request);
+
+            //TODO: test this
+            //propagating to next server
+            //if(next_server)
+                //message_t__free_unpacked(network_send_receive(next_server, msg), NULL);
 
             //creating answer msg
             msg->opcode = MESSAGE_T__OPCODE__OP_PUT + 1;
