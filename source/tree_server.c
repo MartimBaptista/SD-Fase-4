@@ -26,7 +26,7 @@ int main(int argc, char *argv[]){
 
     int listening_socket_fd = network_server_init(atoi(argv[1]));
 
-    if(tree_skel_init(argv[2]) < 0){
+    if(tree_skel_init(argv[2], argv[1]) < 0){
         printf("Error creating the tree or connecting to zookeeper\n");
         closing_handler(-1);
         return -1;
