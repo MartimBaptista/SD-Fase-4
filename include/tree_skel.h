@@ -11,7 +11,8 @@
  * pedidos de escrita na árvore. 
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY) 
  */
-int tree_skel_init(int N);
+int tree_skel_init(char* host_port);
+
 
 /* Função da thread secundária que vai processar pedidos de escrita. 
 */ 

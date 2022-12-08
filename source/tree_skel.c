@@ -12,6 +12,15 @@ Trabalho realisado por: Martim Baptista Nº56323
 #include <stdio.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <zookeeper/zookeeper.h>
+
+
+/* ZooKeeper Znode Data Length (1MB, the max supported) */ 
+#define ZDATALEN 1024 * 1024
+//static char *host_port;
+static char *root_path = "/chain";
+static zhandle_t *zh;
+static int is_connected;
 
 
 struct request_t { 
@@ -46,6 +55,16 @@ size_t threads_amount = 0;
 
 int CLOSE_PROGRAM = 0;
 
+void connection_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
+	if (type == ZOO_SESSION_EVENT) {
+		if (state == ZOO_CONNECTED_STATE) {
+			is_connected = 1; 
+		} else {
+			is_connected = 0; 
+		}
+	}
+}
+
 /* Inicia o skeleton da árvore. 
  * O main() do servidor deve chamar esta função antes de poder usar a 
  * função invoke().  
@@ -53,14 +72,14 @@ int CLOSE_PROGRAM = 0;
  * pedidos de escrita na árvore. 
  * Retorna 0 (OK) ou -1 (erro, por exemplo OUT OF MEMORY) 
  */
-int tree_skel_init(int N){
+int tree_skel_init(char* host_port){
     //Creating tree
     tree = tree_create();
 
     if(tree == NULL)
         return -1;
 
-    threads_amount = N;
+    threads_amount = 1;
 
     //Reserving in_progress array and setting last_assigned and max_proc
     last_assigned = 1;
@@ -73,10 +92,6 @@ int tree_skel_init(int N){
     pthread_mutex_init(&tree_lock, NULL);
     pthread_mutex_init(&op_proc_lock, NULL);
     pthread_cond_init(&queue_not_empty, NULL);
-
-    if (threads_amount < 1){
-        return -1;
-    }
 
     threads = calloc(threads_amount, sizeof(pthread_t));
 
@@ -91,6 +106,8 @@ int tree_skel_init(int N){
             exit(0);
         }
     }
+
+    zh = zookeeper_init(host_port, connection_watcher, 2000, 0, 0, 0);
 
     return 0;
 }
