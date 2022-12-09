@@ -438,8 +438,8 @@ void tree_skel_destroy(){
     //destroying tree
     tree_destroy(tree);
 
-    //TODO:
     //disconnecting from the next server in the chain
+    rtree_disconnect(next_server);
 }
 
 /* Verifica se a operação identificada por op_n foi executada. 
@@ -514,10 +514,11 @@ int invoke(MessageT *msg) {
             
             queue_add_task(new_request);
 
-            //TODO: test this
             //propagating to next server
-            //if(next_server)
-                //message_t__free_unpacked(network_send_receive(next_server, msg), NULL);
+            if(next_server){
+                printf("Propagating message to next in chain\n");
+                message_t__free_unpacked(s2s_network_send_receive(next_server, msg), NULL);
+            }
 
             //creating answer msg
             msg->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
@@ -569,10 +570,11 @@ int invoke(MessageT *msg) {
             
             queue_add_task(new_request);
 
-            //TODO: test this
             //propagating to next server
-            //if(next_server)
-                //message_t__free_unpacked(network_send_receive(next_server, msg), NULL);
+            if(next_server){
+                printf("Propagating message to next in chain\n");
+                message_t__free_unpacked(s2s_network_send_receive(next_server, msg), NULL);
+            }
 
             //creating answer msg
             msg->opcode = MESSAGE_T__OPCODE__OP_PUT + 1;
