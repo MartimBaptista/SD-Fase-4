@@ -4,6 +4,10 @@
 #include "sdmessage.pb-c.h"
 #include "tree.h"
 
+/* Remote tree. A definir pelo grupo em client_stub-private.h
+ */
+struct rtree_t;
+
 /* Inicia o skeleton da árvore. 
  * O main() do servidor deve chamar esta função antes de poder usar a 
  * função invoke().  

@@ -19,10 +19,6 @@ Trabalho realisado por: Martim Baptista Nº56323
 #include <arpa/inet.h>
 #include <zookeeper/zookeeper.h>
 #include "tree_skel-private.h"
-//TODO: these are included cause the server semi-beaves like a cliente to the next server in the chain
-//#include "client_stub.h"
-//#include "network_client.h"
-//
 
 
 
@@ -68,6 +64,49 @@ pthread_t* threads;
 size_t threads_amount = 0;
 
 int CLOSE_PROGRAM = 0;
+
+/* Função para estabelecer uma associação entre o cliente(servidor neste caso) e o servidor, 
+ * em que address_port é uma string no formato <hostname>:<port>.
+ * Retorna NULL em caso de erro.
+ */
+struct rtree_t *rtree_connect(const char *address_port) {
+    struct rtree_t *rtree = malloc(sizeof(struct rtree_t));
+    rtree->server = malloc(sizeof(struct sockaddr_in));
+    char* ip = strtok((char*)address_port, ":");
+    int port = atoi(strtok(NULL, ":"));
+
+    rtree->server->sin_family = AF_INET; // família de endereços
+    if (inet_pton(AF_INET, ip, &rtree->server->sin_addr) < 1) { // Endereço IP
+        printf("Erro ao converter IP\n");
+        return NULL;
+    }
+    rtree->server->sin_port = htons(port); // Porta TCP
+    
+    if(s2s_network_connect(rtree) != 0){
+        free(rtree->server);
+        free(rtree);
+        return NULL;
+    }
+    return rtree;
+}
+
+/* Termina a associação entre o cliente e o servidor, fechando a 
+ * ligação com o servidor e libertando toda a memória local.
+ * Retorna 0 se tudo correr bem e -1 em caso de erro.
+ */
+int rtree_disconnect(struct rtree_t *rtree) {
+    MessageT msg;
+
+    //Create msg and signaling a disconnect
+    message_t__init(&msg);
+    msg.opcode = MESSAGE_T__OPCODE__OP_DISCONNECT;
+    s2s_network_send_receive(rtree, &msg);
+
+    int ret = s2s_network_close(rtree);
+    free(rtree->server);
+    free(rtree);
+    return ret;
+}
 
 void setup_next(zoo_string *children_list){
 
