@@ -1,1 +1,0 @@
--BUG: server shuts down(normal shutdown, not crash) when the next server in chain shuts down, suspect it has to do with the disconnect functions rtree_disconnect() and s2s_network_close().
