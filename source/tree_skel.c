@@ -30,6 +30,7 @@ typedef struct String_vector zoo_string;
 static char *root_path = "/chain";
 static zhandle_t *zh;
 char* own_path;
+char next_server_path[50];
 struct rtree_t *next_server;
 
 
@@ -109,9 +110,9 @@ int rtree_disconnect(struct rtree_t *rtree) {
 }
 
 void setup_next(zoo_string *children_list){
-
     printf("----------------------//----------------------\n");
     printf ("Changes in chain detected, looking for next server in chain.\n");
+
     //Figuring which server is next in the chain
     char* own_name = &own_path[strlen(root_path) + 1];
     char* next_name = NULL;
@@ -124,31 +125,50 @@ void setup_next(zoo_string *children_list){
                 next_name = children_list->data[i];
         }
 	}
+    
     //returning in case no next in chain
-    if(!next_name){
+    if(!next_name) {
         printf("No next node in chain (This server is the tail).\n");
+        if(next_server)
+            rtree_disconnect(next_server);
+        next_server = NULL;
+        strcpy(next_server_path ,"");
         return;
     }
 
-    printf("Next node in chain: %s\n", next_name);
-
-    //getting the servers adress (node data)
+    //building next_server's node_path
     char node_path[100] = "";
 	strcat(node_path,root_path);
 	strcat(node_path,"/");
 	strcat(node_path,next_name);
-    
+
+    //Checking if its a new one or same as before
+    if(strcmp(node_path, next_server_path) == 0) {
+        printf("Next node in chain remains the same, no actions needed.\n");
+        return;
+    }
+    else {
+        if(next_server)
+            rtree_disconnect(next_server);
+        next_server = NULL;
+        strcpy(next_server_path ,node_path);
+        printf("New next node in chain: %s\n", next_server_path);
+    }
+
+    //getting the servers adress (node data)   
     char *zoo_data = malloc(ZDATALEN * sizeof(char));
 	int zoo_data_len = ZDATALEN;
 
-    zoo_get(zh, node_path, 0, zoo_data, &zoo_data_len, NULL);
+    zoo_get(zh, next_server_path, 0, zoo_data, &zoo_data_len, NULL);
 
     printf("IP adress of next node: %s\n", zoo_data);
 
-
-    //TODO:
     //Connecting to the server
-    //rtree_t *rtree_connect(const char *address_port) //to connect to the next server
+    if((next_server = rtree_connect(zoo_data)) == NULL){
+        perror("Error connecting to next server in chain.");
+        exit(EXIT_FAILURE);
+    }
+    printf("Connectiong to: %s established\n", zoo_data);
 }
 
 void children_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
@@ -195,11 +215,11 @@ int tree_skel_init(char* host_port, char* own_port){
         int id = i + 1;
         if(pthread_create(&threads[i], NULL, process_request, (void *) (intptr_t) id) != 0){
             perror("Error creating thread");
-            exit(0);
+            exit(EXIT_FAILURE);
         }
         if(pthread_detach(threads[i]) != 0){
             perror("Error detaching thread");
-            exit(0);
+            exit(EXIT_FAILURE);
         }
     }
 
