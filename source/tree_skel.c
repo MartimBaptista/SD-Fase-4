@@ -13,6 +13,8 @@ Trabalho realisado por: Martim Baptista Nº56323
 #include <pthread.h>
 #include <unistd.h>
 #include <netdb.h>
+#include <errno.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -106,9 +108,11 @@ int rtree_disconnect(struct rtree_t *rtree) {
     int ret = s2s_network_close(rtree);
     free(rtree->server);
     free(rtree);
+    rtree = NULL;
     return ret;
 }
 
+//TODO: This function is mess!!!
 void setup_next(zoo_string *children_list){
     printf("----------------------//----------------------\n");
     printf ("Changes in chain detected, looking for next server in chain.\n");
@@ -116,44 +120,51 @@ void setup_next(zoo_string *children_list){
     //Figuring which server is next in the chain
     char* own_name = &own_path[strlen(root_path) + 1];
     char* next_name = NULL;
+    int prev_still_present = 0;
 
     for (int i = 0; i < children_list->count; i++) {
+        //Checking for the next_path
         if(strcmp(children_list->data[i], own_name) > 0) {
             if(!next_name)
                 next_name = children_list->data[i];
             else if(strcmp(children_list->data[i], next_name) < 0)
                 next_name = children_list->data[i];
         }
+        //Checking if the next_server is still present
+        if(strcmp(children_list->data[i], next_server_path) == 0)
+            prev_still_present = 1;
 	}
-    
-    //returning in case no next in chain
-    if(!next_name) {
-        printf("No next node in chain (This server is the tail).\n");
-        if(next_server)
-            rtree_disconnect(next_server);
-        next_server = NULL;
-        strcpy(next_server_path ,"");
+
+
+    //Checking if the next serve has changed
+    if(prev_still_present) {
+        printf("Next node in chain remains the same, no actions needed.\n");
         return;
     }
 
+    //Clearing vars from old next_server
+    if(next_server){
+        free(next_server->server);
+        free(next_server);
+        next_server = NULL;
+    } 
+    strcpy(next_server_path ,"");
+
+    //returning in case no next in chain
+    if(!next_name) {
+        printf("No next node in chain (This server is the tail).\n");
+        return;
+    }
+    
     //building next_server's node_path
     char node_path[100] = "";
 	strcat(node_path,root_path);
 	strcat(node_path,"/");
 	strcat(node_path,next_name);
 
-    //Checking if its a new one or same as before
-    if(strcmp(node_path, next_server_path) == 0) {
-        printf("Next node in chain remains the same, no actions needed.\n");
-        return;
-    }
-    else {
-        if(next_server)
-            rtree_disconnect(next_server);
-        next_server = NULL;
-        strcpy(next_server_path ,node_path);
-        printf("New next node in chain: %s\n", next_server_path);
-    }
+    //setting the new next_server
+    strcpy(next_server_path ,node_path);
+    printf("New next node in chain: %s\n", next_server_path);
 
     //getting the servers adress (node data)   
     char *zoo_data = malloc(ZDATALEN * sizeof(char));
