@@ -1,3 +1,1 @@
-- Gettting own IP: https://www.geeksforgeeks.org/c-program-display-hostname-ip-address/
-- Fazer um tree_skel-private.h with the rtree like cliente_stub-private.h, this is where the server will keep the info about the next in line.
-- ?not sure? Copy send_receive() from client_network to server_network to use in message propagation.
+-BUG: server shuts down(normal shutdown, not crash) when the next server in chain shuts down, suspect it has to do with the disconnect functions rtree_disconnect() and s2s_network_close().
