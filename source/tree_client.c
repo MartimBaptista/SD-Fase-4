@@ -37,8 +37,8 @@ void closing_handler(int unused){
 int main(int argc, char *argv[]){
     //Checking arguments
     if (argc != 2){
-        printf("Uso: ./tree_client <ip_servidor>:<porto_servidor>\n");
-        printf("Exemplo de uso: ./tree_client 127.0.0.1:12345\n");
+        printf("Uso: ./tree_client <ip_zoo>:<porto_zoo>\n");
+        printf("Exemplo de uso: ./tree_client localhost:2181\n");
         return -1;
     }
     

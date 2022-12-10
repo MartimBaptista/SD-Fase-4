@@ -19,7 +19,7 @@ void closing_handler(int unused){
 int main(int argc, char *argv[]){
 
     if (argc != 3){
-        printf("Uso: %s <listening_port> <host:port>\n", argv[0]);
+        printf("Uso: %s <listening_port> <ip_zoo>:<porto_zoo>\n", argv[0]);
         printf("Exemplo de uso: %s 12345 localhost:2181\n", argv[0]);
         return -1;
     }
