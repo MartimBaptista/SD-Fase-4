@@ -16,7 +16,6 @@ Trabalho realisado por: Martim Baptista Nº56323
 
 
 #define BUFFERSIZE 500 //max input size
-struct rtree_t *rtree;
 
 void sigpipe_handler(int unused){
     printf("Connection to server broken!\n");
@@ -26,10 +25,7 @@ void sigpipe_handler(int unused){
 
 void closing_handler(int unused){
     //Disconnecting from server/tree
-    if(rtree_disconnect(rtree) < 0){
-        perror("Error on disconnect");
-        exit(-1);
-    }
+    rtree_disconnect();
     printf("\nDisconnected from server\n");
     exit(0);
 }
@@ -42,12 +38,8 @@ int main(int argc, char *argv[]){
         return -1;
     }
     
-    if((rtree = rtree_connect(argv[1])) == NULL){
-        return(-1);
-    }
-
+    rtree_connect(argv[1]);
     printf("Connected to server.\n");
-
 
     sigaction(SIGPIPE, &(struct sigaction){sigpipe_handler}, NULL);
     signal(SIGINT, closing_handler);
@@ -99,7 +91,7 @@ int main(int argc, char *argv[]){
             struct entry_t *entry = entry_create(key, data);
 
             //Putting it in tree
-            int op_n = rtree_put(rtree, entry);
+            int op_n = rtree_put(entry);
             if(op_n < 0){
                 perror("Error on put");
                 continue;
@@ -124,7 +116,7 @@ int main(int argc, char *argv[]){
 
             //Getting it from the tree
             struct data_t *data;
-            if((data = rtree_get(rtree, key)) == NULL){
+            if((data = rtree_get(key)) == NULL){
                 //In case there is an entry with that key
                 if(strcmp(strerror(errno), "Success") == 0){
                     printf("Key not found on tree.\n");
@@ -156,7 +148,7 @@ int main(int argc, char *argv[]){
             strcpy(key, key_s);
 
             //Delliting it from the tree
-            int op_n = rtree_del(rtree, key);
+            int op_n = rtree_del(key);
             if(op_n < 0){
                 perror("Error on del");
                 continue;
@@ -175,7 +167,7 @@ int main(int argc, char *argv[]){
             }
 
             int op_n = atoi(key_s);
-            int res = rtree_verify(rtree, op_n);
+            int res = rtree_verify(op_n);
             printf("Process with op number: %d ", op_n);
             if(res == 1)
                 printf("has been processed.\n");
@@ -189,18 +181,18 @@ int main(int argc, char *argv[]){
         //CASE SIZE:
         else if(strcmp(command, "size") == 0){
             //Getting tree size
-            printf("Tree size: %d", rtree_size(rtree));
+            printf("Tree size: %d", rtree_size());
         }
 
         //CASE HEIGHT:
         else if(strcmp(command, "height") == 0){
             //Getting tree height
-            printf("Tree height: %d", rtree_height(rtree));
+            printf("Tree height: %d", rtree_height());
         }
 
         //CASE GETKEYS:
         else if(strcmp(command, "getkeys") == 0){
-            char **keys = rtree_get_keys(rtree);
+            char **keys = rtree_get_keys();
 
             printf("Keys of Tree: {");
             for (size_t i = 0; keys[i] != NULL; i++){
@@ -216,7 +208,7 @@ int main(int argc, char *argv[]){
 
         //CASE GETVALUES:
         else if(strcmp(command, "getvalues") == 0){
-            void** datas = rtree_get_values(rtree);
+            void** datas = rtree_get_values();
 
             int i = 0;
             printf("Values of Tree: {");
@@ -237,10 +229,7 @@ int main(int argc, char *argv[]){
         //CASE QUIT:
         else if(strcmp(command, "quit") == 0){
             //Disconnecting from server/tree
-            if(rtree_disconnect(rtree) < 0){
-                perror("Error on disconnect");
-                return -1;
-            }
+            rtree_disconnect();
             printf("Disconnected from server\n");
             break;
         }

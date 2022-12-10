@@ -12,3 +12,8 @@ struct rtree_t{
     struct sockaddr_in *server;
     int client_sockfd;
 };
+
+struct rtree_ht_t{
+    struct rtree_t *head;
+    struct rtree_t *tail;
+};

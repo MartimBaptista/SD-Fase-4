@@ -114,8 +114,7 @@ int rtree_disconnect(struct rtree_t *rtree) {
 
 //TODO: This function is mess!!!
 void setup_next(zoo_string *children_list){
-    printf("----------------------//----------------------\n");
-    printf ("Changes in chain detected, looking for next server in chain.\n");
+    printf("Setting next server in chain.\n");
 
     //Figuring which server is next in the chain
     char* own_name = &own_path[strlen(root_path) + 1];
@@ -136,7 +135,7 @@ void setup_next(zoo_string *children_list){
 	}
 
 
-    //Checking if the next serve has changed
+    //Checking if the next server has changed
     if(prev_still_present) {
         printf("Next node in chain remains the same, no actions needed.\n");
         return;
@@ -183,6 +182,9 @@ void setup_next(zoo_string *children_list){
 }
 
 void children_watcher(zhandle_t *zzh, int type, int state, const char *path, void* context) {
+    printf("----------------------//----------------------\n");
+    printf("Changes in chain detected.\n");
+
     //Resetting watcher and getting the a list with the children
     zoo_string* children_list =	(zoo_string *) malloc(sizeof(zoo_string));
     zoo_wget_children(zh, root_path, children_watcher, context, children_list);
