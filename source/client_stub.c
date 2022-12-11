@@ -228,22 +228,9 @@ void rtree_connect(const char *address_port) {
  * Retorna 0 se tudo correr bem e -1 em caso de erro.
  */
 void rtree_disconnect() {
-    //TODO:
-    //use disconnect_from_server
-    //remenber: free(rtree_ht);
-    /*
-    MessageT msg;
-
-    //Create msg and signaling a disconnect
-    message_t__init(&msg);
-    msg.opcode = MESSAGE_T__OPCODE__OP_DISCONNECT;
-    network_send_receive(rtree, &msg);
-
-    int ret = network_close(rtree);
-    free(rtree->server);
-    free(rtree);
-    return ret;
-    */
+    disconnect_from_server(rtree_ht->head);
+    disconnect_from_server(rtree_ht->tail);
+    free(rtree_ht);
 }
 
 /* Função para adicionar um elemento na árvore.
