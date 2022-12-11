@@ -110,7 +110,7 @@ int rtree_disconnect(struct rtree_t *rtree) {
     return ret;
 }
 
-//TODO: This function is mess!!!
+//TODO: This function ended up a mess (fix later)!!!
 void setup_next(zoo_string *children_list){
     printf("Setting next server in chain.\n");
 
@@ -446,7 +446,6 @@ void tree_skel_destroy(){
  */
 //Depricated!!!
 int verify(int op_n){
-    //TODO:
     int ret = 0;
     if(op_n <= 0)
         return -1;

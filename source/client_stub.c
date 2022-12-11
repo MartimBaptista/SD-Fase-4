@@ -509,8 +509,10 @@ int rtree_verify(int op_n){
         }
         else if(strcmp((char*)data->data, (char*)entry->value->data) == 0)
             ret = 1;
-        entry_destroy(verify_buffer[op_n]);
-        verify_buffer[op_n] = NULL;
+        if(ret == 1){
+            entry_destroy(verify_buffer[op_n]);
+            verify_buffer[op_n] = NULL;
+        }
     }
     else
         ret = -1;
