@@ -1,1 +1,8 @@
 Trabalho realisado por: Martim Baptista Nº56323
+
+Bugs: 
+-Segmentaion fault dentro do poll quando um servidor se feixa.
+
+Features por implementar:
+-copia dos conteudos de um servidor par o proximo caso este nao os tenha, apenas é feita a propagaçao no momento do put, caso um servidor nao esta conectado no momento em que o put e feito este nao recebera a informaçao do mesmo mais tarde quando se conectar.
+-Verify nao foi atualisado/implementado, suponho que a sua implementaçao passaria por guarda o put que foi feito 
