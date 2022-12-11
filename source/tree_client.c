@@ -172,7 +172,7 @@ int main(int argc, char *argv[]){
             else if(res == 0)
                 printf("has not been processed.\n");
             else{
-                printf("is not vallid.\n");
+                printf("is not vallid or has already been verified before.\n");
             }
         }
 

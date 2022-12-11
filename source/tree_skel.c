@@ -443,7 +443,8 @@ void tree_skel_destroy(){
 }
 
 /* Verifica se a operação identificada por op_n foi executada. 
- */ 
+ */
+//Depricated!!!
 int verify(int op_n){
     //TODO:
     int ret = 0;

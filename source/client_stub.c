@@ -25,6 +25,9 @@ char current_head_path[50];
 char current_tail_path[50];
 struct rtree_ht_t *rtree_ht;
 
+struct entry_t* verify_buffer[100];
+int verify_counter = 1;
+
 
 struct rtree_t *connect_to_server(const char *address_port) {
     struct rtree_t *rtree = malloc(sizeof(struct rtree_t));
@@ -240,7 +243,6 @@ void rtree_disconnect() {
 int rtree_put(struct entry_t *entry) {
     MessageT msg;
     MessageT__Entry msg_entry;
-    int ret;
 
     //Create msg
     message_t__init(&msg);
@@ -268,14 +270,17 @@ int rtree_put(struct entry_t *entry) {
     free(msg_entry.key);
     free(msg_entry.data.data);
     
-    if (answer->opcode == MESSAGE_T__OPCODE__OP_PUT + 1 && answer->c_type == MESSAGE_T__C_TYPE__CT_RESULT)
-        ret = answer->op_n;
-    else
-        ret = -1;
+    if (answer->opcode != MESSAGE_T__OPCODE__OP_PUT + 1 || answer->c_type != MESSAGE_T__C_TYPE__CT_RESULT)
+        return -1;
 
     message_t__free_unpacked(answer, NULL);
 
-    return ret; 
+    //Saving the action to the verify_buffer
+    verify_buffer[verify_counter] = entry_dup(entry);
+    verify_counter++;
+    verify_counter = verify_counter % 100;
+
+    return verify_counter - 1;
 }
 
 /* Função para obter um elemento da árvore.
@@ -360,7 +365,14 @@ int rtree_del(char *key) {
 
     message_t__free_unpacked(answer, NULL);
     
-    return ret; 
+    //Saving the action to the verify_buffer
+    char* verify_key = malloc(strlen(key) + 1);
+    stpcpy(verify_key, key);
+    verify_buffer[verify_counter] = entry_create(verify_key, NULL);
+    verify_counter++;
+    verify_counter = verify_counter % 100;
+
+    return verify_counter - 1;
 }
 
 /* Devolve o número de elementos contidos na árvore.
@@ -486,25 +498,22 @@ void **rtree_get_values() {
 /* Verifica se a operação identificada por op_n foi executada. 
  */ 
 int rtree_verify(int op_n){
-    //TODO:
-    MessageT msg;
-    int ret;
+    int ret = 0;
+    struct entry_t* entry = verify_buffer[op_n];
 
-    message_t__init(&msg);
-
-    // write codes and op_n to message
-    msg.opcode = MESSAGE_T__OPCODE__OP_VERIFY;
-    msg.c_type = MESSAGE_T__C_TYPE__CT_RESULT;
-    msg.op_n = op_n;
-
-    MessageT *answer = network_send_receive(rtree_ht->tail, &msg);
-
-    if (answer->opcode == MESSAGE_T__OPCODE__OP_VERIFY + 1 && answer->c_type == MESSAGE_T__C_TYPE__CT_RESULT)
-        ret = answer->result;
+    if(entry){
+        struct data_t* data = rtree_get(entry->key);
+        if(!data){
+            if(!entry->value)
+            ret = 1;
+        }
+        else if(strcmp((char*)data->data, (char*)entry->value->data) == 0)
+            ret = 1;
+        entry_destroy(verify_buffer[op_n]);
+        verify_buffer[op_n] = NULL;
+    }
     else
         ret = -1;
 
-    message_t__free_unpacked(answer, NULL);
-    
     return ret;
 }
