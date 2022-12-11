@@ -5,6 +5,9 @@ Trabalho realisado por: Martim Baptista Nº56323
 #include "sdmessage.pb-c.h"
 #include "tree.h"
 #include "tree_skel.h"
+#include "entry.h"
+#include "data.h"
+#include "entry.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -365,6 +368,65 @@ void remove_from_in_progress(int op_n){
     pthread_mutex_unlock(&op_proc_lock);
 }
 
+//Propagates del to next_server
+void propagate_del(char *key) {
+    MessageT msg;
+    MessageT__Entry msg_entry;
+
+    //Create msg
+    message_t__init(&msg);
+
+    // write codes to message
+    msg.opcode = MESSAGE_T__OPCODE__OP_DEL;
+    msg.c_type = MESSAGE_T__C_TYPE__CT_KEY;
+
+    //Create entry
+    message_t__entry__init(&msg_entry);
+
+    //write entrys key
+    msg_entry.key = malloc(strlen(key) + 1);
+    stpcpy(msg_entry.key, key);
+
+    //Put entry on msg
+    msg.entry = &msg_entry;
+
+    message_t__free_unpacked(s2s_network_send_receive(next_server, &msg), NULL);
+    free(msg_entry.key);
+
+}
+
+//Propagates put to next_server
+void propagate_put(struct entry_t *entry) {
+    MessageT msg;
+    MessageT__Entry msg_entry;
+
+    //Create msg
+    message_t__init(&msg);
+
+    // write codes to message
+    msg.opcode = MESSAGE_T__OPCODE__OP_PUT;
+    msg.c_type = MESSAGE_T__C_TYPE__CT_ENTRY;
+
+    //Create entry
+    message_t__entry__init(&msg_entry);
+
+    //write entrys key
+    msg_entry.key = malloc(strlen(entry->key) + 1);
+    stpcpy(msg_entry.key, entry->key);
+
+    //write entry data
+    msg_entry.data.len = entry->value->datasize;
+    msg_entry.data.data = malloc(entry->value->datasize);
+    memcpy(msg_entry.data.data, entry->value->data, entry->value->datasize);
+
+    //Put entry on msg
+    msg.entry = &msg_entry;
+
+    message_t__free_unpacked(s2s_network_send_receive(next_server, &msg), NULL);
+    free(msg_entry.key);
+    free(msg_entry.data.data);
+}
+
 /* Função da thread secundária que vai processar pedidos de escrita. 
 */ 
 void * process_request (void *params){
@@ -393,9 +455,18 @@ void * process_request (void *params){
         {
             case 0:     // DELETE
                 tree_del(tree, key);
+                printf("Propagating del %s to next in chain\n", key);
+                if(next_server){
+                    propagate_del(key);
+                }
                 break;
             case 1:     // PUT
                 tree_put(tree, key, data);
+                printf("Propagating put %s %s to next in chain\n", key, (char*)data->data);
+                if(next_server){
+                    struct entry_t *entry = entry_create(key, data);
+                    propagate_put(entry);
+                }
                 break;
         }
         pthread_mutex_unlock(&tree_lock);
@@ -514,12 +585,6 @@ int invoke(MessageT *msg) {
             
             queue_add_task(new_request);
 
-            //propagating to next server
-            if(next_server){
-                printf("Propagating message to next in chain\n");
-                message_t__free_unpacked(s2s_network_send_receive(next_server, msg), NULL);
-            }
-
             //creating answer msg
             msg->opcode = MESSAGE_T__OPCODE__OP_DEL + 1;
             msg->c_type = MESSAGE_T__C_TYPE__CT_RESULT;
@@ -569,12 +634,6 @@ int invoke(MessageT *msg) {
             last_assigned++;
             
             queue_add_task(new_request);
-
-            //propagating to next server
-            if(next_server){
-                printf("Propagating message to next in chain\n");
-                message_t__free_unpacked(s2s_network_send_receive(next_server, msg), NULL);
-            }
 
             //creating answer msg
             msg->opcode = MESSAGE_T__OPCODE__OP_PUT + 1;

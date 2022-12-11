@@ -130,7 +130,6 @@ MessageT *network_receive(int client_socket){
  * - Enviar a mensagem serializada, através do client_socket.
  */
 int network_send(int client_socket, MessageT *msg){
-
     int size = message_t__get_packed_size(msg);
     int size_n = htonl(size);
 
@@ -148,7 +147,7 @@ int network_send(int client_socket, MessageT *msg){
     }
 
     free(buf);
-    message_t__free_unpacked(msg, NULL);
+    //message_t__free_unpacked(msg, NULL);
 
     return 0;
 }
